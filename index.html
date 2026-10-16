@@ -163,6 +163,9 @@ dialog::backdrop{background:rgba(10,15,12,.55)}
 .tgt{display:flex;gap:4px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
 .tgt button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 9px;min-height:32px;font-size:13px}
 .tgt button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.corg{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.corg .btn{flex:1;min-width:200px}
+.corg span{font-size:13px;color:var(--ink-2);flex-basis:100%}
 .adv{display:grid;gap:6px;margin:0;padding:0;list-style:none}
 .adv li{border-left:4px solid var(--line);background:var(--bg);border-radius:0 8px 8px 0;padding:8px 10px;font-size:14px;line-height:1.35;display:grid;gap:6px}
 .adv li.bad{border-color:var(--bad)}.adv li.warn{border-color:var(--warn)}.adv li.ok{border-color:var(--ok)}.adv li.info{border-color:var(--accent)}
@@ -516,7 +519,6 @@ function advice(){
  if(S.target&&sec>S.target*60+60)out.push({lv:"bad",t:`<b>Trop long pour ton temps disponible :</b> environ ${mn} min estimées pour ${S.target} min. Je peux réduire le nombre de séries, puis retirer les exercices d'isolation en dernier recours.`,act:["fit",`Adapter à ${S.target} min`]});
  if(!S.fromProg){
   if(force.length&&!mob.length){const w=warmFor();if(w.length)out.push({lv:"warn",t:`<b>Pas d'échauffement.</b> Commence par 1 ou 2 mouvements de mobilité des zones travaillées : ${w.map(id=>esc(byId[id].n)).join(", ")}.`,act:["warm","Ajouter l'échauffement"]})}
-  const so=sortedPlan();if(so.join()!==ids.join())out.push({lv:"info",t:S.obj==="r"?"<b>Ordre conseillé :</b> mobilité d'abord, puis isométries, puis renforcement, et les étirements à la fin.":"<b>Ordre conseillé :</b> échauffement, puis les exercices polyarticulaires (plusieurs articulations, les plus lourds) tant que tu es frais, puis l'isolation, le gainage et les étirements à la fin.",act:["order","Organiser ma séance"]});
  }
  if(S.obj==="m"){
   if(!S.fromProg&&force.length>8)out.push({lv:"bad",t:`<b>Trop d'exercices :</b> ${force.length} exercices de force. Au-delà de 6 à 8, les dernières séries perdent en qualité. Garde les polyarticulaires et 1 ou 2 exercices d'isolation par muscle.`});
@@ -542,9 +544,15 @@ function coachHTML(){
  return `<div class="coach">
   <div class="ctime"><div class="dur">≈ ${mn} min<small>estimées</small></div>
    <div class="tgt" role="group" aria-label="Temps disponible">Temps dispo ${[0,20,30,45,60].map(v=>`<button data-tgt="${v}" aria-pressed="${S.target===v}">${v?v:"libre"}</button>`).join("")}</div></div>
+  ${orgHTML()}
   <ul class="adv">${adv.map(a=>`<li class="${a.lv}"><span>${a.t}</span>${a.act?`<button class="act" data-act="${a.act[0]}">${a.act[1]}</button>`:""}</li>`).join("")}</ul>
   <details class="tips"><summary>Conseils ${S.obj==="r"?"rééducation":"prise de muscle"}</summary><ul>${tips.map(x=>`<li>${x}</li>`).join("")}</ul></details>
  </div>`}
+function orgHTML(){
+ const sorted=sortedPlan().join()===S.plan.join();
+ const why=S.obj==="r"?"Ordre conseillé : mobilité, puis isométries, puis renforcement, et étirements à la fin.":"Ordre conseillé : échauffement, puis gros exercices (polyarticulaires), puis isolation, gainage et étirements à la fin.";
+ if(S.fromProg)return `<div class="corg"><button class="btn" disabled>Ordre du programme conservé</button><span>Les programmes tout prêts sont déjà dans le bon ordre.</span></div>`;
+ return `<div class="corg"><button class="btn${sorted?"":" pri"}" data-act="order" ${sorted?"disabled":""}>${sorted?"✓ Séance déjà dans le bon ordre":"⇅ Organiser ma séance"}</button><span>${why}</span></div>`}
 let coachMsg="";
 function coachAct(a){
  if(a==="order"){S.plan=sortedPlan();coachMsg="Séance réorganisée."}
