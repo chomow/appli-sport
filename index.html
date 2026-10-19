@@ -317,6 +317,9 @@ body.wlock{overflow:hidden}
 .wbtn.r{background:var(--reeduc)}.wbtn.m{background:var(--muscle)}
 .wbtn b{font-family:var(--display);font-size:34px;font-weight:800;text-transform:uppercase;line-height:1}
 .wbtn span{font-size:15px;opacity:.92;line-height:1.3}
+.blinks{display:flex;gap:16px;flex-wrap:wrap}.blinks .lnk{color:var(--ink-2);font-weight:500;font-size:13px;padding:2px 0;min-height:32px}
+.bbrowse{width:100%;margin-top:10px;border:1px dashed var(--line);background:transparent;border-radius:var(--r);padding:12px;min-height:48px;font-weight:600;font-size:15px;color:var(--ink-2)}
+body.mode-r:not(.browse) :is(.progs,.filters,#rNotice,#count,#grid,.credit){display:none!important}
 </style>
 </head>
 <body>
@@ -431,12 +434,12 @@ function renderControls(){
  document.querySelectorAll(".prof button").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.p===S.prof));
  document.querySelectorAll(".obj button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.o===S.obj));
  $("#subtitle").textContent=PROF_SUB[S.prof];
- $("#rNotice").hidden=S.obj!=="r";if(typeof renderBilanCard==="function")renderBilanCard();
+ $("#rNotice").hidden=S.obj!=="r";if(typeof renderBilanCard==="function"){renderBilanCard();renderProgs()}
  const pool=EX.filter(e=>e.e<=S.prof&&e.o.includes(S.obj));
  const gs=Object.keys(GROUPS).filter(g=>pool.some(e=>e.g===g));
  const regs=regList().filter(r=>pool.some(e=>regMatch(e,r.k)));
  if(S.reg&&!regs.some(r=>r.k===S.reg))S.reg=null;
- $("#regQ").textContent=S.obj==="r"?"Où as-tu mal ?":"Quel muscle veux-tu travailler ?";
+ $("#regQ").textContent=S.obj==="r"?"Filtrer par zone":"Quel muscle veux-tu travailler ?";
  $("#regRow").innerHTML=[{k:"",n:"Tout"},...regs].map(r=>`<button class="chip" data-reg="${r.k}" aria-pressed="${(S.reg||"")===r.k}">${r.n}</button>`).join("");
 }
 function renderGrid(){
@@ -480,9 +483,9 @@ const PARC={id:"epaule",n:"Parcours épaule progressif",sub:"De l'épaule doulou
 const PS={get cur(){return store.get("parcCur",0)},set cur(v){store.set("parcCur",v)},get done(){return store.get("parcDone",[0,0,0,0])},view:0,checks:{}};
 S.parc=store.get("parcPlan",null);
 function renderProgs(){
- $("#progRow").innerHTML=PROGS.map(p=>`<button class="prog" data-prog="${p.id}"><div class="thumbs">${p.items.slice(0,6).map(([id])=>`<img src="${byId[id].i[1]}" alt="">`).join("")}</div>
+ $("#progRow").innerHTML=PROGS.filter(p=>S.obj!=="r"||p.id==="mob5").map(p=>`<button class="prog" data-prog="${p.id}"><div class="thumbs">${p.items.slice(0,6).map(([id])=>`<img src="${byId[id].i[1]}" alt="">`).join("")}</div>
   <div><b>${esc(p.n)}</b><span>${esc(p.sub)}</span><div class="meta">${p.items.length} exercices · ${esc(p.eq)}</div></div></button>`).join("");
- const c=PS.cur,dn=PS.done;
+ const c=PS.cur,dn=PS.done;if(S.obj==="r"&&(isPar()||!dn.some(x=>x>0)))return;
  $("#progRow").insertAdjacentHTML("afterbegin",`<button class="prog parc" data-parc><div class="thumbs">${["X_Pendulum","X_Stick_Flexion","X_Iso_ER","X_Serratus_Wall","X_ER_9090_Band","X_Overhead_Hold"].map(id=>`<img src="${byId[id].i[1]}" alt="">`).join("")}</div>
   <div><b>${esc(PARC.n)}</b><span>${esc(PARC.sub)}</span><div class="meta">Phase ${c+1}/4 : ${esc(PARC.phases[c].short)} · ${dn[c]} séance${dn[c]>1?"s":""} faite${dn[c]>1?"s":""}</div><div class="steps4">${PARC.phases.map((_,i)=>`<i class="${i<c?"done":i===c?"on":""}"></i>`).join("")}</div></div></button>`);
 }
@@ -502,7 +505,7 @@ function openParc(i){
  if(!dl.open)dl.showModal();dl.scrollTop=0;
 }
 function phaseMin(i){const sp=S.plan,so=S.ov;S.ov={};const p=PARC.phases[i];S.plan=p.items.map(x=>x[0]);p.items.forEach(it=>S.ov[it[0]]=parcDose(it));const m=Math.round(planSec()/60);S.plan=sp;S.ov=so;return m}
-function loadPhase(i){S.fromProg=true;S.bil=false;const p=PARC.phases[i];S.plan=p.items.map(x=>x[0]);S.ov={};p.items.forEach(it=>S.ov[it[0]]=parcDose(it));S.parc=i;renderPlan();renderGrid()}
+function loadPhase(i){S.fromProg=true;S.bil=typeof isPar==="function"&&isPar();const p=PARC.phases[i];S.plan=p.items.map(x=>x[0]);S.ov={};p.items.forEach(it=>S.ov[it[0]]=parcDose(it));S.parc=i;renderPlan();renderGrid()}
 function progDose(p,[id,sets,txt,rest,hold]){const d={txt:`${sets} × ${txt}`,short:`${sets} × ${txt}`,sets,rest:rest??p.rest??30};if(hold)d.hold=hold;return d}
 function openProg(pid){
  const p=PROGS.find(x=>x.id===pid),dl=$("#progDlg");
@@ -973,41 +976,57 @@ function painChart(){
  return `<figure class="bchart"><figcaption>Douleur max pendant les séances (/10)</figcaption><svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Évolution de la douleur pendant les ${pts.length} dernières séances">
  <rect x="0" y="${py(3)}" width="${w}" height="${py(0)-py(3)}" class="okband"/><line x1="0" y1="${py(3)}" x2="${w}" y2="${py(3)}" class="okline"/>
  <path d="${path}" class="pline"/>${pts.map((p,i)=>`<circle cx="${px(i)}" cy="${py(p.max)}" r="3.5" class="pdot${p.max>5?" hi":p.max>3?" mid":""}"><title>${new Date(p.t).toLocaleDateString("fr-FR")} : ${p.max}/10</title></circle>`).join("")}</svg></figure>`}
+/* Le Parcours épaule (4 phases) sert de programme pour la coiffe et le conflit */
+const PAR_ST=["supra","infra","subscap","conflit"];
+const isPar=()=>!!B&&B.zone==="E"&&PAR_ST.includes(B.st);
+const curStage=()=>isPar()?PS.cur+1:B.stage;
+const nStages=()=>isPar()?4:3;
+const stW=()=>isPar()?"phase":"étape";
+const stName=i=>isPar()?PARC.phases[i-1].short:STAGES[i-1].n;
 function renderBilanCard(){
- const sec=$("#bilanSec");if(!sec)return;sec.hidden=S.obj!=="r";if(S.obj!=="r")return;
- if(!B){sec.innerHTML=`<button class="bcard new" data-bil-open><span class="bico" aria-hidden="true">?</span><div><b>Bilan de ma douleur</b><span>Localise la douleur et trouve la structure la plus probable en 5 minutes, puis suis un programme adapté.</span></div></button>`;return}
- const z=BZ[B.zone],st=z.st[B.st],pc=pendingCheck(),nS=B.log.length;
+ const sec=$("#bilanSec");if(!sec)return;sec.hidden=S.obj!=="r";
+ document.body.classList.toggle("browse",S.obj!=="r"||!!S.browse);
+ if(S.obj!=="r")return;
+ const browse=`<button class="bbrowse" data-bil-browse aria-expanded="${!!S.browse}">${S.browse?"Masquer les exercices ▴":"Parcourir tous les exercices ▾"}</button>`;
+ if(!B){sec.innerHTML=`<button class="bcard new" data-bil-open><span class="bico" aria-hidden="true">?</span><div><b>Bilan de ma douleur</b><span>Localise la douleur et trouve la structure la plus probable en 5 minutes, puis suis un programme adapté.</span></div></button>${browse}`;return}
+ const s=curStage();if(B.last!==s){if(B.last!=null){B.streak=0;B.bad=0}B.last=s;saveB()}
+ const z=BZ[B.zone],st=z.st[B.st],pc=pendingCheck(),nS=B.log.length,W_=stW();
  let q="";
  if(pc&&pc.ready)q=`<div class="bcheck"><p><b>Depuis ta dernière séance</b>${pc.e.max!=null?` (douleur max ${pc.e.max}/10)`:""}, comment va la douleur ce matin ?</p>
   <div class="bans"><button class="btn" data-bil-ans="n">Comme avant ou mieux</button><button class="btn" data-bil-ans="p">Un peu plus, mais passé dans la journée</button><button class="btn" data-bil-ans="w">Plus forte, et toujours là</button></div></div>`;
  else if(pc)q=`<p class="bsub">Séance enregistrée aujourd'hui. Demain matin, dis-moi comment va la douleur : c'est ce qui règle la suite.</p>`;
- const m=B.msg?`<div class="pmsg ${B.msg.lv}">${B.msg.t}${B.msg.act?`<div class="bact"><button class="btn pri" data-bil-stage="${B.msg.act}">${B.msg.act>B.stage?"Passer":"Revenir"} à l'étape ${B.msg.act} · ${STAGES[B.msg.act-1].n}</button><button class="btn" data-bil-dismiss>Rester à l'étape ${B.stage}</button></div>`:`<button class="lnk" data-bil-dismiss>OK</button>`}</div>`:"";
- sec.innerHTML=`<div class="bcard cur"><button class="bhead" data-bil-prog><span class="bico" aria-hidden="true">${B.stage}</span><div><b>${esc(st.n)} ${esc(zoneSide(B.zone,B.side))}</b><span>Étape ${B.stage}/3 · ${STAGES[B.stage-1].n} · ${nS} séance${nS>1?"s":""} · ${B.streak||0} bonne${(B.streak||0)>1?"s":""} d'affilée</span></div><span class="chev" aria-hidden="true">›</span></button>${m}${q}
- <div class="bact"><button class="btn pri" data-bil-go>Démarrer la séance ▸</button><button class="btn" data-bil-prog>Mon programme</button></div></div>`}
+ const a=B.msg&&B.msg.act;
+ const m=B.msg?`<div class="pmsg ${B.msg.lv}">${B.msg.t}${a==="crit"?`<div class="bact"><button class="btn pri" data-bil-crit>Voir les critères de passage</button><button class="btn" data-bil-dismiss>Plus tard</button></div>`:a?`<div class="bact"><button class="btn pri" data-bil-stage="${a}">${a>s?"Passer":"Revenir"} à l'${W_} ${a} · ${stName(a)}</button><button class="btn" data-bil-dismiss>Rester à l'${W_} ${s}</button></div>`:`<button class="lnk" data-bil-dismiss>OK</button>`}</div>`:"";
+ sec.innerHTML=`<div class="bcard cur"><button class="bhead" data-bil-prog><span class="bico" aria-hidden="true">${s}</span><div><b>${esc(st.n)} ${esc(zoneSide(B.zone,B.side))}</b><span>${isPar()?"Parcours épaule · ":""}${W_==="phase"?"Phase":"Étape"} ${s}/${nStages()} · ${stName(s)} · ${nS} séance${nS>1?"s":""} · ${B.streak||0} bonne${(B.streak||0)>1?"s":""} d'affilée</span></div><span class="chev" aria-hidden="true">›</span></button>${m}${q}
+ <div class="bact"><button class="btn pri" data-bil-go>Démarrer la séance ▸</button><button class="btn" data-bil-prog>Mon programme</button></div>
+ <div class="blinks"><button class="lnk" data-bil-redo>Refaire le bilan</button><button class="lnk" data-bil-end>Arrêter ce suivi</button></div></div>${browse}`}
 function decide(e){
- const s=B.stage,max=e.max??0;let lv;
+ const s=curStage(),N=nStages(),W_=stW(),max=e.max??0;let lv;
  if(max>=6||e.ans==="w")lv="bad";else if(max>=4||e.ans==="p")lv="mid";else lv="good";
  e.res=lv;
  if(lv==="good"){B.streak=(B.streak||0)+1;B.bad=0;
-  if(B.streak>=3&&s<3)B.msg={lv:"ok",t:`<b>${B.streak} séances bien tolérées d'affilée.</b> Tu peux passer à l'étape suivante. Garde la même règle : 3/10 maximum pendant, retour à la normale le lendemain.`,act:s+1};
-  else B.msg={lv:"ok",t:`<b>Bien toléré.</b> ${s<3?`Garde cette étape : encore ${3-B.streak} séance${3-B.streak>1?"s":""} comme celle-ci et tu pourras passer à la suite. Tu peux augmenter un peu la charge si c'était facile.`:"Continue, et augmente la charge ou la vitesse peu à peu."}`}}
- else if(lv==="mid"){B.streak=0;B.bad=0;B.msg={lv:"warn",t:"<b>Limite haute.</b> Garde cette étape, mais réduis un peu à la prochaine séance : moins de charge, moins d'amplitude ou une série de moins."}}
+  if(B.streak>=3&&s<N)B.msg=isPar()?{lv:"ok",t:`<b>${B.streak} séances bien tolérées d'affilée.</b> Vérifie les critères de la phase ${s} : s'ils sont tous remplis, tu peux passer à la phase ${s+1}.`,act:"crit"}
+   :{lv:"ok",t:`<b>${B.streak} séances bien tolérées d'affilée.</b> Tu peux passer à l'étape suivante. Garde la même règle : 3/10 maximum pendant, retour à la normale le lendemain.`,act:s+1};
+  else B.msg={lv:"ok",t:`<b>Bien toléré.</b> ${s<N?`Garde cette ${W_} : encore ${3-B.streak} séance${3-B.streak>1?"s":""} comme celle-ci et tu pourras passer à la suite. Tu peux augmenter un peu la charge si c'était facile.`:"Continue, et augmente la charge ou la vitesse peu à peu."}`}}
+ else if(lv==="mid"){B.streak=0;B.bad=0;B.msg={lv:"warn",t:`<b>Limite haute.</b> Garde cette ${W_}, mais réduis un peu à la prochaine séance : moins de charge, moins d'amplitude ou une série de moins.`}}
  else{B.streak=0;B.bad=(B.bad||0)+1;
-  if(B.bad>=2&&s===1)B.msg={lv:"bad",t:"<b>Deux séances mal tolérées d'affilée, même à l'étape la plus douce.</b> Fais une pause de quelques jours et montre la zone à un kiné ou un médecin : le problème n'est peut-être pas celui que le bilan suggère."};
-  else B.msg={lv:"bad",t:`<b>Séance trop chargée.</b> Prends 48 h de repos relatif (bouger sans charger la zone).${s>1?" Ensuite, reviens à l'étape précédente quelques séances.":" Ensuite, refais l'étape 1 avec moins de répétitions."}`,act:s>1?s-1:0}}
+  if(B.bad>=2&&s===1)B.msg={lv:"bad",t:`<b>Deux séances mal tolérées d'affilée, même à la ${W_} la plus douce.</b> Fais une pause de quelques jours et montre la zone à un kiné ou un médecin : le problème n'est peut-être pas celui que le bilan suggère.`};
+  else B.msg={lv:"bad",t:`<b>Séance trop chargée.</b> Prends 48 h de repos relatif (bouger sans charger la zone).${s>1?` Ensuite, reviens à la ${W_} précédente quelques séances.`:` Ensuite, refais la ${W_} 1 avec moins de répétitions.`}`,act:s>1?s-1:0}}
  saveB()}
 
 /* ---------- Programme du bilan ---------- */
 function bilItems(stage){return BZ[B.zone].st[B.st].p[stage-1].filter(it=>byId[it[0]])}
-function loadBilan(stage=B.stage){S.parc=null;S.fromProg=true;S.bil=true;const items=bilItems(stage);S.plan=items.map(x=>x[0]);S.ov={};items.forEach(it=>S.ov[it[0]]=progDose({rest:45},it));renderPlan();renderGrid()}
+function loadBilan(stage=curStage()){
+ if(isPar()){loadPhase(stage-1);S.bil=true;renderPlan();return}
+ S.parc=null;S.fromProg=true;S.bil=true;const items=bilItems(stage);S.plan=items.map(x=>x[0]);S.ov={};items.forEach(it=>S.ov[it[0]]=progDose({rest:45},it));renderPlan();renderGrid()}
 function bilanRunEnd(){
  if(!S.bil||!B)return"";
- if(!R.bilCounted){const vals=S.plan.map(id=>R.pain[id]).filter(v=>v!=null);B.log.push({t:Date.now(),max:vals.length?Math.max(...vals):null,stage:B.stage,ans:null});if(B.log.length>60)B.log=B.log.slice(-60);B.msg=null;saveB();R.bilCounted=1;renderBilanCard()}
+ if(!R.bilCounted){const vals=S.plan.map(id=>R.pain[id]).filter(v=>v!=null);B.log.push({t:Date.now(),max:vals.length?Math.max(...vals):null,stage:curStage(),ans:null});if(B.log.length>60)B.log=B.log.slice(-60);B.msg=null;saveB();R.bilCounted=1;renderBilanCard()}
  const e=B.log[B.log.length-1];
  const now=e.max==null?'<p class="pmsg warn">Tu n\'as pas noté ta douleur pendant les exercices. La prochaine fois, touche l\'échelle 0–10 sous chaque exercice : c\'est ce qui permet d\'ajuster le programme.</p>'
   :e.max>=6?`<p class="pmsg bad">Douleur jusqu'à ${e.max}/10 pendant la séance : c'est trop. Repos relatif 48 h, puis on ajustera selon ta réponse de demain.</p>`
   :`<p class="pmsg ok">Séance enregistrée dans ton suivi (douleur max ${e.max}/10).</p>`;
- return now+'<p class="tip"><b>Demain matin</b>, ouvre l\'appli en mode Rééducation : je te demanderai comment va la douleur, et j\'adapterai l\'étape.</p>'}
+ return now+`<p class="tip"><b>Demain matin</b>, ouvre l'appli en mode Rééducation : je te demanderai comment va la douleur, et j'adapterai la ${stW()}.</p>`}
 
 /* ---------- Fenêtre du bilan ---------- */
 const bd=()=>$("#bilanDlg");
@@ -1067,7 +1086,7 @@ function bDraw(){
   if(W.dur==="c")notes.push(`<div class="pmsg warn">Douleur depuis plus de 6 semaines : si elle ne s'améliore pas après 4 à 6 semaines de programme, demande un avis et éventuellement une échographie.</div>`);
   const top=res[0]?.[1];
   h=bShell("Résultat",`<p class="bsub">Ces tests orientent, ils ne posent pas un diagnostic : plusieurs structures se recouvrent souvent. Seul un examen (et une échographie si besoin) confirme.</p>${notes.join("")}
-   ${res.length?`<p class="bk">Structures les plus probables · choisis celle à travailler</p><div class="bres">${res.map(([k,v],i)=>{const st=z.st[k];return `<label class="bri${W.pick===k?" on":""}"><input type="radio" name="bpick" value="${k}" data-b-pick ${W.pick===k?"checked":""}><div><div class="brh"><b>${esc(st.n)}</b><span class="blv l${i}">${bLevel(v,top)}</span></div><span class="bs">${esc(st.s)}</span><p>${esc(st.d)}</p>${why[k].length?`<ul>${why[k].map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:`<p class="bs">D'après l'endroit indiqué.</p>`}${st.cons?`<p class="bcons">${esc(st.cons)}</p>`:""}</div></label>`}).join("")}</div>
+   ${res.length?`<p class="bk">Structures les plus probables · choisis celle à travailler</p><div class="bres">${res.map(([k,v],i)=>{const st=z.st[k];return `<label class="bri${W.pick===k?" on":""}"><input type="radio" name="bpick" value="${k}" data-b-pick ${W.pick===k?"checked":""}><div><div class="brh"><b>${esc(st.n)}</b><span class="blv l${i}">${bLevel(v,top)}</span></div><span class="bs">${esc(st.s)}</span><p>${esc(st.d)}</p>${why[k].length?`<ul>${why[k].map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:`<p class="bs">D'après l'endroit indiqué.</p>`}${st.cons?`<p class="bcons">${esc(st.cons)}</p>`:""}${W.zone==="E"&&PAR_ST.includes(k)?`<p class="bs">Programme : Parcours épaule progressif, en 4 phases.</p>`:""}</div></label>`}).join("")}</div>
    ${res.length>1&&res[1][1]>=res[0][1]-1?`<p class="bsub">Les deux premières sont proches : c'est fréquent, et leurs programmes se ressemblent. Commence par la première.</p>`:""}`:""}`,
    res.length?`<button class="btn pri" data-b-save>Voir mon programme ▸</button>`:`<button class="btn" data-b-close>Fermer</button><button class="btn pri" data-b-direct>Exercices de la zone ▸</button>`)}
  else if(s==="prog"){const z=BZ[B.zone],st=z.st[B.st],v=W.view||B.stage,items=bilItems(v);
@@ -1084,6 +1103,7 @@ function bSave(){
  const {maxP}=bScore(W);
  const stage=(W.rest>=3||maxP>=7||W.dur==="a")?1:2;
  B={v:1,zone:W.zone,side:W.side,loc:W.loc,st:W.pick,stage,log:[],streak:0,at:Date.now(),ans:W.ans,res:W.res,msg:{lv:"ok",t:stage===1?"<b>Départ à l'étape 1 (Calmer)</b> : la douleur est encore vive ou récente. On monte quand 3 séances d'affilée sont bien tolérées.":"<b>Départ à l'étape 2 (Renforcer)</b> : la douleur est modérée. Si la première séance fait trop mal, l'appli te proposera de revenir à l'étape 1."}};
+ if(isPar()){B.msg.t=B.msg.t.replace(/l'étape (\d) \(\w+\)/,(m,n)=>`la phase ${n} du Parcours épaule`).replace("revenir à l'étape 1","revenir à la phase 1");PS.cur=stage-1;B.last=stage;saveB();renderProgs();renderBilanCard();W=null;bd().close();return openParc(stage-1)}
  saveB();W={view:stage,step:"prog"};bDraw();renderBilanCard()}
 bd().addEventListener("click",ev=>{const t=ev.target,d=bd();
  if(t===d||t.closest("[data-b-close]")){W=W&&W.step==="prog"?null:W;return d.close()}
@@ -1111,14 +1131,14 @@ bd().addEventListener("click",ev=>{const t=ev.target,d=bd();
   else if(W.step==="test"){if(W.ti<z.tests.length-1)W.ti++;else W.step="res"}
   d.scrollTop=0;return bDraw()}
  if(g("b-force")){W.step=z.direct?"direct":"test";return bDraw()}
- if(g("b-direct")){S.reg=W.zone;S.obj="r";store.set("obj","r");W=null;d.close();render();return keepChip()}
+ if(g("b-direct")){S.reg=W.zone;S.browse=true;S.obj="r";store.set("obj","r");W=null;d.close();render();return keepChip()}
  if(g("b-save"))return bSave();
  if(x=g("b-view")){W.view=+x.dataset.bView;return bDraw()}
  if(x=g("bil-stage")){setStage(+x.dataset.bilStage);W.view=B.stage;return bDraw()}
  if(x=g("b-load")){B.stage=+x.dataset.bLoad;saveB();loadBilan();W=null;d.close();drawPlanSheet();return $("#planDlg").showModal()}
  if(x=g("b-go")){B.stage=+x.dataset.bGo;saveB();loadBilan();W=null;d.close();return startRun()}
  if(g("b-redo")){W={zone:B.zone,side:B.side,loc:null,flags:[],rest:null,dur:null,ans:{},ti:0};return bOpen("loc")}
- if(g("b-end")){if(!confirm("Arrêter ce suivi ? L'historique de douleur sera effacé."))return;B=null;saveB();if(S.bil){S.bil=false;store.set("bil",false)}W=null;d.close();return renderBilanCard()}
+ if(g("b-end")){d.close();return endSuivi()}
  if(x=g("see"))return openDetail(x.dataset.see);
 });
 bd().addEventListener("change",ev=>{const t=ev.target;
@@ -1126,11 +1146,16 @@ bd().addEventListener("change",ev=>{const t=ev.target;
  else if(t.matches("[data-b-weak]")){const id=BZ[W.zone].tests[W.ti];W.ans[id]={...(W.ans[id]||{}),w:t.checked,skip:false}}
  else if(t.matches("[data-b-pick]")){W.pick=t.value;bDraw()}});
 bd().addEventListener("keydown",ev=>{const p=ev.target.closest("[data-b-zone]");if(p&&(ev.key==="Enter"||ev.key===" ")){ev.preventDefault();p.dispatchEvent(new MouseEvent("click",{bubbles:true}))}});
-function setStage(n){if(!B||n<1||n>3)return;B.stage=n;B.streak=0;B.bad=0;B.msg=null;saveB();if(S.bil)loadBilan();renderBilanCard()}
+function endSuivi(){if(!confirm("Arrêter ce suivi ? L'historique de douleur sera effacé."))return;B=null;saveB();if(S.bil){S.bil=false;store.set("bil",false)}W=null;renderBilanCard();renderProgs()}
+function setStage(n){if(!B||n<1||n>nStages())return;if(isPar()){PS.cur=n-1;renderProgs()}else B.stage=n;B.streak=0;B.bad=0;B.last=n;B.msg=null;saveB();if(S.bil)loadBilan();renderBilanCard()}
 document.addEventListener("click",ev=>{const t=ev.target;if(t.closest("dialog"))return;
  const g=k=>t.closest(`[data-${k}]`);let x;
  if(g("bil-open")){W=null;return bOpen("zone")}
- if(g("bil-prog")){W={view:B.stage,step:"prog"};return bOpen("prog")}
+ if(g("bil-prog")){if(isPar())return openParc();W={view:B.stage,step:"prog"};return bOpen("prog")}
+ if(g("bil-crit"))return openParc();
+ if(g("bil-browse")){S.browse=!S.browse;renderBilanCard();if(S.browse)setTimeout(()=>$(".progs").scrollIntoView({behavior:"smooth",block:"start"}),50);return}
+ if(g("bil-redo")){W={zone:B.zone,side:B.side,loc:null,flags:[],rest:null,dur:null,ans:{},ti:0};return bOpen("loc")}
+ if(g("bil-end"))return endSuivi();
  if(g("bil-go")){loadBilan();return startRun()}
  if(x=g("bil-ans")){const pc=pendingCheck();if(pc){pc.e.ans=x.dataset.bilAns;decide(pc.e)}return renderBilanCard()}
  if(x=g("bil-stage")){const n=+x.dataset.bilStage;if(n)setStage(n);else{B.msg=null;saveB();renderBilanCard()}return}
@@ -1140,7 +1165,7 @@ document.addEventListener("click",ev=>{const t=ev.target;if(t.closest("dialog"))
 /* ---------- Accueil : rééducation ou renforcement ---------- */
 (function welcome(){
  const w=document.createElement("div");w.id="welcome";w.setAttribute("role","dialog");w.setAttribute("aria-modal","true");w.setAttribute("aria-label","Choisis ton objectif");
- const sub=B?`Suivi en cours : ${esc(BZ[B.zone].st[B.st].n)}, étape ${B.stage}`:"J'ai mal quelque part, je veux comprendre et soigner";
+ const sub=B?`Suivi en cours : ${esc(BZ[B.zone].st[B.st].n)}, ${stW()} ${curStage()}`:"J'ai mal quelque part, je veux comprendre et soigner";
  w.innerHTML=`<div class="win"><h1>Mouvement <span>Juste</span></h1><p>Qu'est-ce qu'on fait aujourd'hui ?</p>
  <button class="wbtn r" data-w="r"><b>Rééducation</b><span>${sub}</span></button>
  <button class="wbtn m" data-w="m"><b>Renforcement</b><span>Prise de muscle, force, séances de salle ou maison</span></button></div>`;
