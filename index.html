@@ -735,7 +735,7 @@ function drawRun(){
   ${sideUI}
   <div class="sets">${Array.from({length:d.sets},(_,k)=>`<i class="${k<R.set?"done":""}"></i>`).join("")}</div>
   ${S.obj==="r"?`<div class="pain"><span class="flabel">Douleur pendant l'exercice (0–10)</span><div class="scale">${Array.from({length:11},(_,v)=>`<button data-pain="${v}" aria-pressed="${R.pain[e.id]===v}">${v}</button>`).join("")}</div>${painMsg(R.pain[e.id])}</div>`:""}
-  <details><summary>Consignes</summary><ol>${e.s.map(s=>`<li>${esc(s)}</li>`).join("")}</ol></details>
+  <details data-cons ${R.cons?"open":""}><summary>Consignes</summary><ol>${e.s.map(s=>`<li>${esc(s)}</li>`).join("")}</ol></details>
   <div class="dock">${main}<div class="row">${second}<button class="btn" data-next>${R.i<total-1?"Suivant ▸":"Terminer ▸"}</button><button class="btn" data-rq>Quitter</button></div></div>
  </div>`;
 }
@@ -758,6 +758,7 @@ $("#runDlg").addEventListener("click",ev=>{const t=ev.target;
  if(t.closest("[data-next]"))return nextEx();
  const p=t.closest("[data-pain]");if(p){R.pain[S.plan[R.i]]=+p.dataset.pain;drawRun()}
 });
+$("#runDlg").addEventListener("toggle",ev=>{if(R&&ev.target.matches&&ev.target.matches("details[data-cons]"))R.cons=ev.target.open},true);
 $("#runDlg").addEventListener("close",()=>{stopTimer();unlockScreen()});
 $("#planStart").onclick=startRun;
 if(!phone.matches)$("#rNotice").open=true;
