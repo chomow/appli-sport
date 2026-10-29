@@ -483,10 +483,10 @@ const PARC={id:"epaule",n:"Parcours épaule progressif",sub:"De l'épaule doulou
 const PS={get cur(){return store.get("parcCur",0)},set cur(v){store.set("parcCur",v)},get done(){return store.get("parcDone",[0,0,0,0])},view:0,checks:{}};
 S.parc=store.get("parcPlan",null);
 function renderProgs(){
- $("#progRow").innerHTML=PROGS.filter(p=>S.obj!=="r"||p.id==="mob5"||p.id==="omo"||p.id==="ess5").map(p=>`<button class="prog" data-prog="${p.id}"><div class="thumbs">${p.items.slice(0,6).map(([id])=>`<img src="${byId[id].i[1]}" alt="">`).join("")}</div>
+ $("#progRow").innerHTML=PROGS.filter(p=>S.obj!=="r"?true:!p.seance&&(p.id==="mob5"||p.id==="omo"||p.id==="ess5")).map(p=>`<button class="prog" data-prog="${p.id}"><div class="thumbs">${p.items.slice(0,6).map(([id])=>`<img src="${byId[id].i[1]}" alt="">`).join("")}</div>
   <div><b>${esc(p.n)}</b><span>${esc(p.sub)}</span><div class="meta">${p.items.length} exercices · ${esc(p.eq)}</div></div></button>`).join("");
  const c=PS.cur,dn=PS.done;if(S.obj==="r"&&(isPar()||!dn.some(x=>x>0)))return;
- $("#progRow").insertAdjacentHTML("afterbegin",`<button class="prog parc" data-parc><div class="thumbs">${["X_Pendulum","X_Stick_Flexion","X_Iso_ER","X_Serratus_Wall","X_ER_9090_Band","X_Overhead_Hold"].map(id=>`<img src="${byId[id].i[1]}" alt="">`).join("")}</div>
+ (el=>el?el.insertAdjacentHTML.bind(el,"afterend"):$("#progRow").insertAdjacentHTML.bind($("#progRow"),"afterbegin"))(document.querySelector('#progRow [data-prog="s_full"]'))(`<button class="prog parc" data-parc><div class="thumbs">${["X_Pendulum","X_Stick_Flexion","X_Iso_ER","X_Serratus_Wall","X_ER_9090_Band","X_Overhead_Hold"].map(id=>`<img src="${byId[id].i[1]}" alt="">`).join("")}</div>
   <div><b>${esc(PARC.n)}</b><span>${esc(PARC.sub)}</span><div class="meta">Phase ${c+1}/4 : ${esc(PARC.phases[c].short)} · ${dn[c]} séance${dn[c]>1?"s":""} faite${dn[c]>1?"s":""}</div><div class="steps4">${PARC.phases.map((_,i)=>`<i class="${i<c?"done":i===c?"on":""}"></i>`).join("")}</div></div></button>`);
 }
 function parcDose(it){return progDose({rest:30},it)}
@@ -1007,6 +1007,25 @@ PROGS.push({id:"omo",n:"Omoplate · de la rééduc à la force",sub:"Bas du trap
 PROGS.push({id:"ess5",n:"Épaule · les 5 indispensables",sub:"Rotation, omoplate, haut du dos, bras en l'air, stabilité",eq:"Haltère léger, une kettlebell légère",
  note:["Une séance d'entretien qui couvre les cinq qualités d'une épaule solide : la rotation (coiffe des rotateurs), le contrôle de l'omoplate, la mobilité du haut du dos, la force bras en l'air et la stabilité. Compte environ 20 minutes.","À faire 2 à 3 fois par semaine en prévention, ou à la fin du Parcours épaule pour entretenir. Charges légères, mouvements lents."],
  items:[["X_HK_TSpine_Rotation",2,"8 rép par côté",20],["X_HK_ER_Knee",3,"10 rép par bras · descente 3 s",45],["External_Rotation",2,"12 rép par bras",45],["X_Prone_Hand_Back_Lift",2,"8 rép par bras · 3 s en haut",30],["X_Wall_Slides",2,"10 rép",30],["X_KB_Bottoms_Up",3,"5 rép par bras · 3 s en haut",60]]});
+/* ---------- Séances prêtes de 30 min (haut / bas / corps complet), une version par profil ---------- */
+const SEANCES={
+ haut:{n:"Haut du corps · 30 min",sub:"Pousser, tirer, épaules, bras",eq:["Une table solide, une chaise","Haltères, barre de porte","Machines, poulies, barre"],
+  v:[[["Arm_Circles",1,"20 s par sens",15],["Pushups",3,"8 à 15 rép",75],["Inverted_Row",3,"8 à 12 rép · sous une table solide",75],["Bench_Dips",3,"10 à 12 rép",60],["Push-Up_Wide",3,"8 à 12 rép",60],["X_Prone_YT",3,"12 rép",45],["Plank",2,"30 à 45 s",45,40]],
+     [["Arm_Circles",1,"20 s par sens",15],["Dumbbell_Bench_Press",3,"8 à 12 rép · au sol ou sur un banc",90],["Bent_Over_Two-Dumbbell_Row",3,"10 à 12 rép",75],["Dumbbell_Shoulder_Press",3,"8 à 12 rép",75],["Chin-Up",3,"le maximum propre · barre de porte",90],["Dumbbell_Bicep_Curl",2,"12 rép",45],["Standing_Dumbbell_Triceps_Extension",2,"12 rép",45]],
+     [["Arm_Circles",1,"20 s par sens",15],["Barbell_Bench_Press_-_Medium_Grip",3,"6 à 10 rép",90],["Wide-Grip_Lat_Pulldown",3,"8 à 12 rép",75],["Seated_Cable_Rows",3,"10 à 12 rép",75],["Leverage_Shoulder_Press",3,"10 rép",60],["Face_Pull",2,"15 rép",45],["Triceps_Pushdown",2,"12 rép",45]]]},
+ bas:{n:"Bas du corps · 30 min",sub:"Squat, charnière de hanche, fentes, mollets",eq:["Une chaise, une marche","Haltères ou kettlebell, ballon","Machines, barre"],
+  v:[[["Standing_Hip_Circles",1,"10 par sens",15],["Bodyweight_Squat",3,"15 à 20 rép",60],["Split_Squats",3,"10 rép par jambe",60],["Single_Leg_Glute_Bridge",3,"12 rép par jambe",45],["Platform_Hamstring_Slides",3,"10 rép par jambe",45],["Standing_Dumbbell_Calf_Raise",3,"15 à 20 rép",45]],
+     [["Standing_Hip_Circles",1,"10 par sens",15],["Goblet_Squat",3,"10 à 12 rép",90],["Stiff-Legged_Dumbbell_Deadlift",3,"10 à 12 rép",90],["Dumbbell_Lunges",3,"10 rép par jambe",75],["Ball_Leg_Curl",3,"10 à 12 rép",60],["Standing_Dumbbell_Calf_Raise",3,"12 à 15 rép · haltère en main",45]],
+     [["Standing_Hip_Circles",1,"10 par sens",15],["Barbell_Squat",3,"6 à 10 rép",120],["Barbell_Hip_Thrust",3,"8 à 12 rép",90],["Leg_Press",3,"10 à 12 rép",90],["Lying_Leg_Curls",3,"10 à 12 rép",60],["Standing_Calf_Raises",3,"12 à 15 rép",45]]]},
+ full:{n:"Corps complet · 30 min",sub:"Un exercice par grand mouvement, plus le gainage",eq:["Une table solide, une chaise","Haltères ou kettlebell","Machines, barre"],
+  v:[[["Standing_Hip_Circles",1,"10 par sens",15],["Bodyweight_Squat",3,"15 à 20 rép",60],["Pushups",3,"8 à 15 rép",60],["Inverted_Row",3,"8 à 12 rép · sous une table solide",60],["Split_Squats",3,"10 rép par jambe",60],["Single_Leg_Glute_Bridge",3,"12 rép par jambe",45],["Plank",2,"30 à 45 s",45,40]],
+     [["Standing_Hip_Circles",1,"10 par sens",15],["Goblet_Squat",3,"10 à 12 rép",75],["Dumbbell_Bench_Press",3,"8 à 12 rép",75],["Bent_Over_Two-Dumbbell_Row",3,"10 à 12 rép",75],["Stiff-Legged_Dumbbell_Deadlift",3,"10 à 12 rép",75],["Dumbbell_Shoulder_Press",2,"10 rép",60],["Plank",2,"30 à 45 s",45,40]],
+     [["Standing_Hip_Circles",1,"10 par sens",15],["Barbell_Squat",3,"6 à 10 rép",120],["Barbell_Bench_Press_-_Medium_Grip",3,"6 à 10 rép",90],["Wide-Grip_Lat_Pulldown",3,"8 à 12 rép",75],["Barbell_Hip_Thrust",3,"8 à 12 rép",75],["Plank",2,"45 s",45,45]]]},
+};
+const SEANCE_NOTE="Échauffement inclus. Les 2 dernières répétitions de chaque série doivent être difficiles mais propres. Laisse 48 h avant de retravailler les mêmes muscles : par exemple haut / bas / repos / corps complet.";
+for(const [id,x] of Object.entries(SEANCES).reverse())PROGS.unshift({id:"s_"+id,n:x.n,sub:x.sub,seance:1,
+ get eq(){return x.eq[S.prof]},get items(){return x.v[S.prof]},
+ get note(){return [`${x.sub}. Version ${["domicile sans matériel","domicile avec petit matériel","salle de sport"][S.prof]} : elle change avec le profil choisi en haut de la page.`,SEANCE_NOTE]}});
 /* ---------- Bilan de la douleur : écrans et suivi ---------- */
 S.bil=store.get("bil",false);
 let B=store.get("bilan",null);
