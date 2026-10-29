@@ -714,6 +714,7 @@ function drawRun(){
    parcMsg=`<p class="pmsg ok">Parcours épaule · phase ${S.parc+1} : ${PS.done[S.parc]} séance${PS.done[S.parc]>1?"s":""} faite${PS.done[S.parc]>1?"s":""}. Vérifie les critères de passage dans le parcours.</p>`}
   const rows=S.plan.map(id=>`<li>${esc(byId[id].n)}${R.pain[id]!=null?` · douleur ${R.pain[id]}/10`:""}</li>`).join("");
   dl.innerHTML=`<div class="run"><div class="hdr"><h2>Séance terminée</h2></div><div class="bar"><i style="width:100%"></i></div>${parcMsg}${bilMsg}<ol>${rows}</ol>${bilMsg?"":(S.obj==="r"||S.parc!=null)?'<p class="tip">Note ton ressenti demain matin : si la douleur est revenue à son niveau habituel, tu peux garder ce dosage ou progresser légèrement.</p>':'<p class="tip">Laisse 48 h de récupération avant de retravailler les mêmes muscles.</p>'}<div class="dock"><button class="btn pri xl" data-rq>Fermer</button></div></div>`;return}
+ if(R.phase==="trans"){const n=byId[S.plan[R.i+1]],nd=dose(n,1);dl.innerHTML=`<div class="run"><div class="hdr"><h2>Repos</h2><span class="step">${R.i+2}/${total}</span></div><div class="bar"><i style="width:${((R.i+1)/total*100).toFixed(1)}%"></i></div><div class="big">${R.left}<small style="font-size:.45em"> s</small></div><p class="big-sub">Prochain exercice</p><h3 class="rq" style="text-align:center">${esc(n.n)}</h3>${anim(n)}<div class="box"><div class="v">${nd.txt}</div></div><div class="dock"><button class="btn pri xl" data-skip>Passer le repos</button><div class="row"><button class="btn" data-rq>Quitter</button></div></div></div>`;return}
  const e=byId[S.plan[R.i]],d=dose(e,1),isHold=!!d.hold,sa=sidesArr(),uni=!!e.u,ns=uni?sa.length:1;
  if(R.side>=ns)R.side=0;
  const sideNow=uni?SIDE_N[sa[R.side]]:"",moreSide=uni&&R.side<ns-1;
@@ -744,13 +745,13 @@ function setDone(){const e=byId[S.plan[R.i]],d=dose(e,1);buzz(30);
   if(d.hold){R.phase="switch";return countdown(5,()=>{R.phase="hold";countdown(d.hold,()=>{R.phase="work";setDone()})})}
   R.phase="work";return drawRun()}
  R.side=0;R.set++;
- if(R.set>=d.sets){nextEx()}else{R.phase="rest";countdown(d.rest,()=>{R.phase="work";drawRun()})}}
+ if(R.set>=d.sets){if(R.i<S.plan.length-1&&d.rest>0){R.phase="trans";countdown(d.rest,()=>nextEx())}else nextEx()}else{R.phase="rest";countdown(d.rest,()=>{R.phase="work";drawRun()})}}
 function nextEx(){stopTimer();onDone=null;R.i++;R.set=0;R.side=0;R.phase="work";drawRun();$("#runDlg").scrollTop=0}
 $("#runDlg").addEventListener("click",ev=>{const t=ev.target;
  if(t.closest("[data-rq]")){stopTimer();unlockScreen();return $("#runDlg").close()}
  if(t.closest("[data-done]"))return setDone();
  if(t.closest("[data-hold]")){R.phase="hold";return countdown(dose(byId[S.plan[R.i]],1).hold,()=>{R.phase="work";setDone()})}
- if(t.closest("[data-skip]")){stopTimer();onDone=null;
+ if(t.closest("[data-skip]")){stopTimer();onDone=null;if(R.phase==="trans")return nextEx();
   if(R.phase==="hold"){R.phase="work";return setDone()}
   if(R.phase==="switch"){const h=dose(byId[S.plan[R.i]],1).hold;R.phase="hold";return countdown(h,()=>{R.phase="work";setDone()})}
   R.phase="work";return drawRun()}
